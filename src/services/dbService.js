@@ -21,17 +21,13 @@ class LocalStorageDb {
   }
 
   initDatabase() {
-    // 1. Seed Products if not exists
     if (!localStorage.getItem('novacare_products')) {
       localStorage.setItem('novacare_products', JSON.stringify(INITIAL_PRODUCTS_DATA));
     }
-    // 2. Init Orders if not exists
     if (!localStorage.getItem('novacare_orders')) {
       localStorage.setItem('novacare_orders', JSON.stringify([]));
     }
-    // 3. Init Reviews if not exists
     if (!localStorage.getItem('novacare_reviews')) {
-      // Collect reviews from initial products
       const initialReviews = [];
       INITIAL_PRODUCTS_DATA.forEach(p => {
         if (p.reviews) {
@@ -53,44 +49,51 @@ class LocalStorageDb {
 
   // Products CRUD
   getProducts() {
+    const all = JSON.parse(localStorage.getItem('novacare_products')) || [];
+    return all.filter(p => !p.is_archived);
+  }
+
+  getAllProducts() {
     return JSON.parse(localStorage.getItem('novacare_products')) || [];
   }
 
   saveProduct(product) {
-    const products = this.getProducts();
+    const products = this.getAllProducts();
     const index = products.findIndex(p => p.id === product.id);
-    
     if (index > -1) {
       products[index] = { ...products[index], ...product };
     } else {
-      products.push(product);
+      products.push({ ...product, is_archived: false });
     }
-    
     localStorage.setItem('novacare_products', JSON.stringify(products));
     return product;
   }
 
-  deleteProduct(id) {
-    let products = this.getProducts();
-    products = products.filter(p => p.id !== id);
-    localStorage.setItem('novacare_products', JSON.stringify(products));
+  archiveProduct(id) {
+    const products = this.getAllProducts();
+    const index = products.findIndex(p => p.id === id);
+    if (index > -1) {
+      products[index].is_archived = true;
+      localStorage.setItem('novacare_products', JSON.stringify(products));
+    }
     return id;
   }
 
   // Orders CRUD
   getOrders() {
-    return JSON.parse(localStorage.getItem('novacare_orders')) || [];
+    const all = JSON.parse(localStorage.getItem('novacare_orders')) || [];
+    return all.filter(o => !o.is_archived);
   }
 
   saveOrder(order) {
-    const orders = this.getOrders();
-    orders.push(order);
+    const orders = JSON.parse(localStorage.getItem('novacare_orders')) || [];
+    orders.push({ ...order, is_archived: false });
     localStorage.setItem('novacare_orders', JSON.stringify(orders));
     return order;
   }
 
   updateOrderStatus(id, status) {
-    const orders = this.getOrders();
+    const orders = JSON.parse(localStorage.getItem('novacare_orders')) || [];
     const index = orders.findIndex(o => o.id === id);
     if (index > -1) {
       orders[index].status = status;
@@ -98,6 +101,16 @@ class LocalStorageDb {
       return orders[index];
     }
     return null;
+  }
+
+  archiveOrder(id) {
+    const orders = JSON.parse(localStorage.getItem('novacare_orders')) || [];
+    const index = orders.findIndex(o => o.id === id);
+    if (index > -1) {
+      orders[index].is_archived = true;
+      localStorage.setItem('novacare_orders', JSON.stringify(orders));
+    }
+    return id;
   }
 
   // Reviews CRUD
@@ -117,6 +130,47 @@ class LocalStorageDb {
 const localDb = new LocalStorageDb();
 
 // --------------------------------------------------------------------------
+// HELPER: normalize a supabase product row for the app
+// --------------------------------------------------------------------------
+const normalizeProduct = (row) => ({
+  id: row.id,
+  name: row.name,
+  category: row.category,
+  tagline: row.tagline,
+  nafdac: row.nafdac,
+  price: parseFloat(row.price),
+  image: row.image,
+  benefits: row.benefits || [],
+  description: row.description,
+  ingredients: row.ingredients || [],
+  directions: row.directions,
+  warnings: row.warnings,
+  testimonial_videos: row.testimonial_videos || [],
+  gallery_images: row.gallery_images || [],
+  lead_magnet: row.lead_magnet || null,
+  is_archived: row.is_archived || false,
+  created_at: row.created_at,
+});
+
+// --------------------------------------------------------------------------
+// HELPER: normalize a supabase order row for the app
+// --------------------------------------------------------------------------
+const normalizeOrder = (row) => ({
+  id: row.id,
+  customerName: row.customer_name,
+  phone: row.phone,
+  altPhone: row.alt_phone,
+  state: row.state,
+  lga: row.lga,
+  address: row.address,
+  items: row.items,
+  total: row.total,
+  status: row.status,
+  createdAt: row.created_at,
+  is_archived: row.is_archived || false,
+});
+
+// --------------------------------------------------------------------------
 // EXPORTED UNIFIED DB SERVICE
 // --------------------------------------------------------------------------
 export const dbService = {
@@ -126,12 +180,14 @@ export const dbService = {
       const { data, error } = await supabase
         .from('products')
         .select('*')
+        .eq('is_archived', false)
         .order('created_at', { ascending: true });
+
       if (error) {
         console.error('Supabase getProducts error, falling back to LocalStorage:', error);
         return localDb.getProducts();
       }
-      
+
       // Auto Seed Products into Supabase if empty
       if (data.length === 0) {
         console.log('Supabase products table is empty. Seeding initial products...');
@@ -147,60 +203,86 @@ export const dbService = {
           description: p.description,
           ingredients: p.ingredients,
           directions: p.directions,
-          warnings: p.warnings
+          warnings: p.warnings,
+          testimonial_videos: [],
+          gallery_images: [],
+          lead_magnet: null,
+          is_archived: false,
         }));
-        
+
         const { error: seedError } = await supabase
           .from('products')
           .insert(productsToSeed);
-          
+
         if (seedError) {
           console.error('Failed to seed products into Supabase:', seedError);
-        } else {
-          // Re-fetch
-          const { data: refetched } = await supabase
-            .from('products')
-            .select('*')
-            .order('created_at', { ascending: true });
-          return refetched || productsToSeed;
+          return localDb.getProducts();
         }
+
+        const { data: refetched } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_archived', false)
+          .order('created_at', { ascending: true });
+        return (refetched || productsToSeed).map(normalizeProduct);
       }
-      
-      return data;
+
+      return data.map(normalizeProduct);
     }
     return localDb.getProducts();
   },
 
   async saveProduct(product) {
     if (isSupabaseEnabled()) {
+      // Build the full DB payload (map JS fields → DB columns)
+      const dbPayload = {
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        tagline: product.tagline,
+        nafdac: product.nafdac,
+        price: product.price,
+        image: product.image,
+        benefits: product.benefits,
+        description: product.description,
+        ingredients: product.ingredients,
+        directions: product.directions,
+        warnings: product.warnings,
+        testimonial_videos: product.testimonial_videos || [],
+        gallery_images: product.gallery_images || [],
+        lead_magnet: product.lead_magnet || null,
+        is_archived: false,
+      };
+
       const { data, error } = await supabase
         .from('products')
-        .upsert(product)
+        .upsert(dbPayload, { onConflict: 'id' })
         .select();
+
       if (error) {
         console.error('Supabase saveProduct error:', error);
-        throw new Error(`Failed to save to Supabase: ${error.message}`);
+        throw new Error(`Failed to save product: ${error.message}`);
       }
-      // Also update local cache for immediate UI sync
+      // Sync local cache
       localDb.saveProduct(product);
-      return data[0];
+      return normalizeProduct(data[0]);
     }
     return localDb.saveProduct(product);
   },
 
-  async deleteProduct(id) {
+  async archiveProduct(id) {
     if (isSupabaseEnabled()) {
       const { error } = await supabase
         .from('products')
-        .delete()
+        .update({ is_archived: true })
         .eq('id', id);
       if (error) {
-        console.error('Supabase deleteProduct error, falling back to LocalStorage:', error);
-        return localDb.deleteProduct(id);
+        console.error('Supabase archiveProduct error:', error);
+        throw new Error(`Failed to archive product: ${error.message}`);
       }
       return id;
     }
-    return localDb.deleteProduct(id);
+    return localDb.archiveProduct(id);
   },
 
   // ORDERS CRUD
@@ -209,51 +291,43 @@ export const dbService = {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
+        .eq('is_archived', false)
         .order('created_at', { ascending: false });
       if (error) {
         console.error('Supabase getOrders error, falling back to LocalStorage:', error);
         return localDb.getOrders();
       }
-      return data.map(ord => ({
-        id: ord.id,
-        customerName: ord.customer_name,
-        phone: ord.phone,
-        altPhone: ord.alt_phone,
-        state: ord.state,
-        lga: ord.lga,
-        address: ord.address,
-        items: ord.items,
-        total: ord.total,
-        status: ord.status,
-        createdAt: ord.created_at
-      }));
+      return data.map(normalizeOrder);
     }
-    return localDb.getOrders().map(ord => ({
-      id: ord.id,
-      customerName: ord.customer_name,
-      phone: ord.phone,
-      altPhone: ord.alt_phone,
-      state: ord.state,
-      lga: ord.lga,
-      address: ord.address,
-      items: ord.items,
-      total: ord.total,
-      status: ord.status,
-      createdAt: ord.createdAt
-    }));
+    return localDb.getOrders();
   },
 
   async saveOrder(order) {
     if (isSupabaseEnabled()) {
+      const dbPayload = {
+        id: order.id,
+        customer_name: order.customer_name,
+        phone: order.phone,
+        alt_phone: order.alt_phone,
+        address: order.address,
+        state: order.state,
+        lga: order.lga,
+        items: order.items,
+        total: order.total,
+        status: order.status || 'Pending',
+        is_archived: false,
+      };
+
       const { data, error } = await supabase
         .from('orders')
-        .insert([order])
+        .insert([dbPayload])
         .select();
+
       if (error) {
-        console.error('Supabase saveOrder error, falling back to LocalStorage:', error);
-        return localDb.saveOrder(order);
+        console.error('Supabase saveOrder error:', error);
+        throw new Error(`Failed to place order: ${error.message}`);
       }
-      return data[0];
+      return normalizeOrder(data[0]);
     }
     return localDb.saveOrder(order);
   },
@@ -266,12 +340,27 @@ export const dbService = {
         .eq('id', id)
         .select();
       if (error) {
-        console.error('Supabase updateOrderStatus error, falling back to LocalStorage:', error);
-        return localDb.updateOrderStatus(id, status);
+        console.error('Supabase updateOrderStatus error:', error);
+        throw new Error(`Failed to update order: ${error.message}`);
       }
-      return data[0];
+      return normalizeOrder(data[0]);
     }
     return localDb.updateOrderStatus(id, status);
+  },
+
+  async archiveOrder(id) {
+    if (isSupabaseEnabled()) {
+      const { error } = await supabase
+        .from('orders')
+        .update({ is_archived: true })
+        .eq('id', id);
+      if (error) {
+        console.error('Supabase archiveOrder error:', error);
+        throw new Error(`Failed to archive order: ${error.message}`);
+      }
+      return id;
+    }
+    return localDb.archiveOrder(id);
   },
 
   // REVIEWS CRUD
@@ -286,12 +375,11 @@ export const dbService = {
         console.error('Supabase getReviews error, falling back to LocalStorage:', error);
         return localDb.getReviews(productId);
       }
-      
+
       // Auto Seed Reviews into Supabase if empty
       if (data.length === 0) {
         const initialProd = INITIAL_PRODUCTS_DATA.find(p => p.id === productId);
         if (initialProd && initialProd.reviews && initialProd.reviews.length > 0) {
-          console.log(`Seeding initial reviews for ${productId} to Supabase...`);
           const reviewsToSeed = initialProd.reviews.map(r => ({
             product_id: productId,
             author: r.author,
@@ -313,7 +401,7 @@ export const dbService = {
           }
         }
       }
-      
+
       return data;
     }
     return localDb.getReviews(productId);
@@ -326,7 +414,7 @@ export const dbService = {
         .insert([review])
         .select();
       if (error) {
-        console.error('Supabase saveReview error, falling back to LocalStorage:', error);
+        console.error('Supabase saveReview error:', error);
         return localDb.saveReview(review);
       }
       return data[0];

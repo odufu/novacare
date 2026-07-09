@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Download, X } from 'lucide-react';
+import { Plus, Edit, Archive, Download, X } from 'lucide-react';
 import { dbService } from '../services/dbService';
 import { NIGERIAN_STATES } from '../data/initialData';
 
@@ -226,14 +226,26 @@ export default function AdminDashboard({
     }
   };
 
-  const handleDeleteProduct = async (id) => {
-    if (window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+  const handleArchiveProduct = async (id, name) => {
+    if (window.confirm(`Archive "${name}"? It will be hidden from the store but all data is preserved.`)) {
       try {
-        await dbService.deleteProduct(id);
-        addToast("Product deleted successfully!", "success");
+        await dbService.archiveProduct(id);
+        addToast("Product archived successfully!", "success");
         fetchAdminData();
       } catch (e) {
-        addToast("Failed to delete product", "error");
+        addToast(e.message || "Failed to archive product", "error");
+      }
+    }
+  };
+
+  const handleArchiveOrder = async (id) => {
+    if (window.confirm(`Archive order ${id}? It will be hidden from the board but all data is preserved.`)) {
+      try {
+        await dbService.archiveOrder(id);
+        addToast(`Order ${id} archived!`, "success");
+        fetchAdminData();
+      } catch (e) {
+        addToast(e.message || "Failed to archive order", "error");
       }
     }
   };
@@ -386,16 +398,25 @@ export default function AdminDashboard({
                         })}
                       </td>
                       <td>
-                        <select 
-                          value={order.status}
-                          onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                          className={`status-select ${order.status.toLowerCase()}`}
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="Dispatched">Dispatched</option>
-                          <option value="Delivered">Delivered</option>
-                          <option value="Cancelled">Cancelled</option>
-                        </select>
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <select 
+                            value={order.status}
+                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                            className={`status-select ${order.status.toLowerCase()}`}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Dispatched">Dispatched</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                          <button
+                            onClick={() => handleArchiveOrder(order.id)}
+                            title="Archive order"
+                            style={{ padding: '6px 8px', background: 'transparent', border: '1px solid var(--panel-border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text-muted)' }}
+                          >
+                            <Archive size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -678,10 +699,11 @@ export default function AdminDashboard({
                         </button>
                         <button 
                           className="btn btn-outline" 
-                          onClick={() => handleDeleteProduct(prod.id)}
-                          style={{ padding: '6px 12px', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                          onClick={() => handleArchiveProduct(prod.id, prod.name)}
+                          title="Archive product"
+                          style={{ padding: '6px 12px', color: 'var(--text-muted)', borderColor: 'var(--panel-border)' }}
                         >
-                          <Trash2 size={16} /> Delete
+                          <Archive size={16} /> Archive
                         </button>
                       </div>
                     </td>
