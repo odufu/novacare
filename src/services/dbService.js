@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { INITIAL_PRODUCTS_DATA } from '../data/initialData';
+
 
 // Initialize Supabase Client if keys are present
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -188,45 +188,6 @@ export const dbService = {
         return localDb.getProducts();
       }
 
-      // Auto Seed Products into Supabase if empty
-      if (data.length === 0) {
-        console.log('Supabase products table is empty. Seeding initial products...');
-        const productsToSeed = INITIAL_PRODUCTS_DATA.map(p => ({
-          id: p.id,
-          name: p.name,
-          category: p.category,
-          tagline: p.tagline,
-          nafdac: p.nafdac,
-          price: p.price,
-          image: p.image,
-          benefits: p.benefits,
-          description: p.description,
-          ingredients: p.ingredients,
-          directions: p.directions,
-          warnings: p.warnings,
-          testimonial_videos: [],
-          gallery_images: [],
-          lead_magnet: null,
-          is_archived: false,
-        }));
-
-        const { error: seedError } = await supabase
-          .from('products')
-          .insert(productsToSeed);
-
-        if (seedError) {
-          console.error('Failed to seed products into Supabase:', seedError);
-          return localDb.getProducts();
-        }
-
-        const { data: refetched } = await supabase
-          .from('products')
-          .select('*')
-          .eq('is_archived', false)
-          .order('created_at', { ascending: true });
-        return (refetched || productsToSeed).map(normalizeProduct);
-      }
-
       return data.map(normalizeProduct);
     }
     return localDb.getProducts();
@@ -375,33 +336,6 @@ export const dbService = {
         console.error('Supabase getReviews error, falling back to LocalStorage:', error);
         return localDb.getReviews(productId);
       }
-
-      // Auto Seed Reviews into Supabase if empty
-      if (data.length === 0) {
-        const initialProd = INITIAL_PRODUCTS_DATA.find(p => p.id === productId);
-        if (initialProd && initialProd.reviews && initialProd.reviews.length > 0) {
-          const reviewsToSeed = initialProd.reviews.map(r => ({
-            product_id: productId,
-            author: r.author,
-            location: r.location,
-            rating: r.rating,
-            comment: r.comment,
-            date: r.date
-          }));
-          const { error: reviewSeedError } = await supabase
-            .from('reviews')
-            .insert(reviewsToSeed);
-          if (!reviewSeedError) {
-            const { data: refetchedReviews } = await supabase
-              .from('reviews')
-              .select('*')
-              .eq('product_id', productId)
-              .order('created_at', { ascending: false });
-            return refetchedReviews || reviewsToSeed;
-          }
-        }
-      }
-
       return data;
     }
     return localDb.getReviews(productId);
