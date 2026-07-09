@@ -2,6 +2,11 @@
 logs
 *.log
 npm-debug.log*
+
+# Environment variables (NEVER commit these!)
+.env
+.env.*
+!.env.example
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
