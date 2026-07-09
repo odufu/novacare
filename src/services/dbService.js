@@ -22,28 +22,13 @@ class LocalStorageDb {
 
   initDatabase() {
     if (!localStorage.getItem('novacare_products')) {
-      localStorage.setItem('novacare_products', JSON.stringify(INITIAL_PRODUCTS_DATA));
+      localStorage.setItem('novacare_products', JSON.stringify([]));
     }
     if (!localStorage.getItem('novacare_orders')) {
       localStorage.setItem('novacare_orders', JSON.stringify([]));
     }
     if (!localStorage.getItem('novacare_reviews')) {
-      const initialReviews = [];
-      INITIAL_PRODUCTS_DATA.forEach(p => {
-        if (p.reviews) {
-          p.reviews.forEach(r => {
-            initialReviews.push({
-              product_id: p.id,
-              author: r.author,
-              location: r.location,
-              rating: r.rating,
-              comment: r.comment,
-              date: r.date
-            });
-          });
-        }
-      });
-      localStorage.setItem('novacare_reviews', JSON.stringify(initialReviews));
+      localStorage.setItem('novacare_reviews', JSON.stringify([]));
     }
   }
 
