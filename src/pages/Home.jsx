@@ -1,21 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, CheckSquare } from 'lucide-react';
 import { dbService } from '../services/dbService';
 
 export default function Home({ products, setCurrentPage }) {
-  const [currentHeroImage, setCurrentHeroImage] = useState(1);
+  const [heroImageIndex, setHeroImageIndex] = useState(0);
   const [settings, setSettings] = useState(null);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentHeroImage((prev) => (prev % 5) + 1);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     dbService.getSiteSettings().then(setSettings).catch(console.error);
   }, []);
+
+  // Restart slideshow whenever images change
+  useEffect(() => {
+    if (!settings) return;
+    const images = parseHeroImages(settings.hero_images);
+    if (images.length <= 1) return;
+    const interval = setInterval(() => {
+      setHeroImageIndex(prev => (prev + 1) % images.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [settings]);
+
+  const parseHeroImages = (raw) => {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : ["assets/hero-doctor-1.png"];
+    } catch {
+      return ["assets/hero-doctor-1.png"];
+    }
+  };
 
   const handleProductClick = (productId, event) => {
     event.preventDefault();
@@ -25,6 +38,8 @@ export default function Home({ products, setCurrentPage }) {
 
   // Show nothing until settings load (prevents flash)
   if (!settings) return null;
+
+  const heroImages = parseHeroImages(settings.hero_images);
 
   return (
     <main>
@@ -88,11 +103,11 @@ export default function Home({ products, setCurrentPage }) {
             width: '100%',
           }}>
 
-            {/* Doctor — automatic slideshow, floats freely */}
+            {/* Doctor — automatic slideshow */}
             <img
-              key={`hero-img-${currentHeroImage}`}
-              src={`assets/hero-doctor-${currentHeroImage}.png`}
-              alt="Novacare Certified Medical Professional holding Grazer Herbal Detox Tea"
+              key={`hero-img-${heroImageIndex}`}
+              src={heroImages[heroImageIndex]}
+              alt="Novacare Certified Medical Professional"
               style={{
                 width: '100%',
                 maxWidth: '420px',

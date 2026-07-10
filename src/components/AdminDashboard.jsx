@@ -824,6 +824,70 @@ export default function AdminDashboard({
               ))}
             </div>
 
+            {/* Hero Slideshow Images */}
+            <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--panel-border)', paddingBottom: '8px', margin: '24px 0 16px' }}>
+              🖼️ Hero Slideshow Images
+            </h4>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Add image URLs (from Google Drive, Cloudinary, etc.). The slideshow rotates through them every 4 seconds.
+            </p>
+            {(() => {
+              let images = [];
+              try { images = JSON.parse(heroSettings.hero_images || '[]'); } catch {}
+              if (!Array.isArray(images)) images = [];
+
+              const updateImages = (newImages) => {
+                handleHeroChange('hero_images', JSON.stringify(newImages));
+              };
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {images.map((url, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', minWidth: '24px', textAlign: 'center', fontWeight: 700 }}>
+                        {idx + 1}
+                      </span>
+                      {/* Preview thumbnail */}
+                      <img
+                        src={url}
+                        alt={`slide ${idx + 1}`}
+                        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--panel-border)', flexShrink: 0 }}
+                        onError={e => { e.target.style.display = 'none'; }}
+                      />
+                      <input
+                        type="url"
+                        className="form-input"
+                        placeholder="https://example.com/image.png"
+                        value={url}
+                        onChange={e => {
+                          const updated = [...images];
+                          updated[idx] = e.target.value;
+                          updateImages(updated);
+                        }}
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateImages(images.filter((_, i) => i !== idx))}
+                        style={{ padding: '8px 10px', background: 'transparent', border: '1px solid var(--panel-border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}
+                        title="Remove image"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => updateImages([...images, ''])}
+                    style={{ alignSelf: 'flex-start', padding: '8px 16px', marginTop: '4px' }}
+                  >
+                    <Plus size={14} /> Add Image URL
+                  </button>
+                </div>
+              );
+            })()}
+
             <button
               className="btn btn-primary"
               onClick={handleHeroSave}

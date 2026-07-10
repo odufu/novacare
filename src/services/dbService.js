@@ -366,6 +366,13 @@ export const dbService = {
       hero_card3_icon: "🚚",
       hero_card3_title: "Pay on Delivery",
       hero_card3_desc: "Inspect before you pay",
+      // hero_images stores a JSON-encoded array of image URLs
+      hero_images: JSON.stringify([
+        "assets/hero-doctor-1.png",
+        "assets/hero-doctor-2.png",
+        "assets/hero-doctor-3.png",
+        "assets/hero-doctor-4.png",
+      ]),
     };
 
     if (isSupabaseEnabled()) {
