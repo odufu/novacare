@@ -1,22 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, CheckSquare } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { dbService } from '../services/dbService';
 
 export default function Home({ products, setCurrentPage }) {
   const [currentHeroImage, setCurrentHeroImage] = useState(1);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentHeroImage((prev) => (prev % 5) + 1);
-    }, 4000); // Change image every 4 seconds
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
-  
+  useEffect(() => {
+    dbService.getSiteSettings().then(setSettings).catch(console.error);
+  }, []);
+
   const handleProductClick = (productId, event) => {
     event.preventDefault();
     setCurrentPage(`product-${productId}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Show nothing until settings load (prevents flash)
+  if (!settings) return null;
 
   return (
     <main>
@@ -29,16 +37,14 @@ export default function Home({ products, setCurrentPage }) {
           {/* LEFT: Content */}
           <div className="hero-content animate-fade-in-up">
             <div className="hero-badges">
-              <span className="badge badge-primary">✓ NAFDAC Certified</span>
-              <span className="badge badge-secondary">🚚 Free Doorstep Delivery</span>
+              <span className="badge badge-primary">{settings.hero_badge1}</span>
+              <span className="badge badge-secondary">{settings.hero_badge2}</span>
             </div>
             <h1 className="hero-title">
-              Nigeria's Most <br />
-              <span className="accent">Trusted Herbal</span><br />
-              Supplement Brand.
+              {settings.hero_headline}
             </h1>
             <p className="hero-subtitle">
-              Every product is NAFDAC-registered and laboratory verified — what is on the label is <strong>exactly</strong> what is inside the bottle. Order now and pay only when it arrives at your door.
+              {settings.hero_subheadline}
             </p>
             <div className="hero-actions" style={{ marginTop: '8px' }}>
               <a
@@ -50,32 +56,26 @@ export default function Home({ products, setCurrentPage }) {
                   document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >
-                Shop Now <ArrowRight size={18} />
+                {settings.hero_cta_text} <ArrowRight size={18} />
               </a>
-
             </div>
 
             {/* Stats Row */}
             <div style={{ display: 'flex', gap: '32px', marginTop: '40px', paddingTop: '32px', borderTop: '1px solid var(--panel-border)', flexWrap: 'wrap' }}>
-              <div>
-                <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--primary)', fontFamily: 'var(--font-heading)' }}>1M+</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sales Per Month</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--primary)', fontFamily: 'var(--font-heading)' }}>36</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>States Covered</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--primary)', fontFamily: 'var(--font-heading)' }}>7</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Premium Products</div>
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--secondary)', fontFamily: 'var(--font-heading)' }}>4.9</div>
-                  <span style={{ fontSize: '1.1rem' }}>⭐</span>
+              {[
+                { val: settings.hero_stat1_value, label: settings.hero_stat1_label, color: 'var(--primary)' },
+                { val: settings.hero_stat2_value, label: settings.hero_stat2_label, color: 'var(--primary)' },
+                { val: settings.hero_stat3_value, label: settings.hero_stat3_label, color: 'var(--primary)' },
+                { val: settings.hero_stat4_value, label: settings.hero_stat4_label, color: 'var(--secondary)', star: true },
+              ].map((s, i) => (
+                <div key={i}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ fontSize: '2rem', fontWeight: 900, color: s.color, fontFamily: 'var(--font-heading)' }}>{s.val}</div>
+                    {s.star && <span style={{ fontSize: '1.1rem' }}>⭐</span>}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg. Rating</div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -111,88 +111,37 @@ export default function Home({ products, setCurrentPage }) {
               gap: '12px',
               width: '100%',
             }}>
-
-              {/* Card 1 — NAFDAC Certified */}
-              <div style={{
-                background: 'var(--panel-bg)',
-                border: '1px solid var(--panel-border)',
-                borderRadius: '20px',
-                padding: '20px 14px',
-                textAlign: 'center',
-                boxShadow: 'var(--shadow-md)',
-                backdropFilter: 'blur(12px)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow='var(--shadow-lg)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='var(--shadow-md)'; }}>
-                <div style={{
-                  width: '48px', height: '48px', borderRadius: '50%',
-                  background: 'hsl(145,70%,92%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1.4rem', margin: '0 auto 12px',
-                }}>🧬</div>
-                <div style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--primary)', lineHeight: 1.3, marginBottom: '4px' }}>
-                  NAFDAC Certified
+              {[
+                { icon: settings.hero_card1_icon, title: settings.hero_card1_title, desc: settings.hero_card1_desc, bg: 'hsl(145,70%,92%)', color: 'var(--primary)' },
+                { icon: settings.hero_card2_icon, title: settings.hero_card2_title, desc: settings.hero_card2_desc, bg: 'hsl(145,70%,92%)', color: 'var(--primary)' },
+                { icon: settings.hero_card3_icon, title: settings.hero_card3_title, desc: settings.hero_card3_desc, bg: 'hsl(38,100%,94%)', color: 'var(--secondary)' },
+              ].map((card, i) => (
+                <div key={i} style={{
+                  background: 'var(--panel-bg)',
+                  border: '1px solid var(--panel-border)',
+                  borderRadius: '20px',
+                  padding: '20px 14px',
+                  textAlign: 'center',
+                  boxShadow: 'var(--shadow-md)',
+                  backdropFilter: 'blur(12px)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow='var(--shadow-lg)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='var(--shadow-md)'; }}>
+                  <div style={{
+                    width: '48px', height: '48px', borderRadius: '50%',
+                    background: card.bg,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '1.4rem', margin: '0 auto 12px',
+                  }}>{card.icon}</div>
+                  <div style={{ fontWeight: 800, fontSize: '0.82rem', color: card.color, lineHeight: 1.3, marginBottom: '4px' }}>
+                    {card.title}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    {card.desc}
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                  Govt. approved & verified
-                </div>
-              </div>
-
-              {/* Card 2 — Label = Bottle */}
-              <div style={{
-                background: 'var(--panel-bg)',
-                border: '1px solid var(--panel-border)',
-                borderRadius: '20px',
-                padding: '20px 14px',
-                textAlign: 'center',
-                boxShadow: 'var(--shadow-md)',
-                backdropFilter: 'blur(12px)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow='var(--shadow-lg)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='var(--shadow-md)'; }}>
-                <div style={{
-                  width: '48px', height: '48px', borderRadius: '50%',
-                  background: 'hsl(145,70%,92%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1.4rem', margin: '0 auto 12px',
-                }}>🌿</div>
-                <div style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--primary)', lineHeight: 1.3, marginBottom: '4px' }}>
-                  Label = Bottle
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                  100% purity guaranteed
-                </div>
-              </div>
-
-              {/* Card 3 — Pay on Delivery */}
-              <div style={{
-                background: 'var(--panel-bg)',
-                border: '1px solid var(--panel-border)',
-                borderRadius: '20px',
-                padding: '20px 14px',
-                textAlign: 'center',
-                boxShadow: 'var(--shadow-md)',
-                backdropFilter: 'blur(12px)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow='var(--shadow-lg)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='var(--shadow-md)'; }}>
-                <div style={{
-                  width: '48px', height: '48px', borderRadius: '50%',
-                  background: 'hsl(38,100%,94%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1.4rem', margin: '0 auto 12px',
-                }}>🚚</div>
-                <div style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--secondary)', lineHeight: 1.3, marginBottom: '4px' }}>
-                  Pay on Delivery
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                  Inspect before you pay
-                </div>
-              </div>
-
+              ))}
             </div>
           </div>
         </div>

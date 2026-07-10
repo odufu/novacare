@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Archive, Download, X } from 'lucide-react';
+import { Plus, Edit, Archive, Download, X, Save } from 'lucide-react';
 import { dbService } from '../services/dbService';
 import { NIGERIAN_STATES } from '../data/initialData';
 
@@ -11,7 +11,7 @@ export default function AdminDashboard({
   orders,
   setOrders
 }) {
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'products'
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'products', 'hero'
   const [stateFilter, setStateFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -38,9 +38,14 @@ export default function AdminDashboard({
   // Ingredients dynamic fields
   const [formIngredients, setFormIngredients] = useState([{ name: '', purpose: '' }]);
 
+  // Hero Settings state
+  const [heroSettings, setHeroSettings] = useState(null);
+  const [heroSaving, setHeroSaving] = useState(false);
+
   // Refresh data on mount
   useEffect(() => {
     fetchAdminData();
+    dbService.getSiteSettings().then(setHeroSettings).catch(console.error);
   }, []);
 
   const fetchAdminData = async () => {
@@ -52,6 +57,21 @@ export default function AdminDashboard({
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleHeroChange = (key, value) => {
+    setHeroSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleHeroSave = async () => {
+    setHeroSaving(true);
+    try {
+      await dbService.saveSiteSettings(heroSettings);
+      addToast('Hero settings saved successfully!', 'success');
+    } catch (e) {
+      addToast(e.message || 'Failed to save hero settings', 'error');
+    }
+    setHeroSaving(false);
   };
 
   // --------------------------------------------------------------------------
@@ -287,6 +307,13 @@ export default function AdminDashboard({
             style={{ padding: '10px 20px' }}
           >
             Manage Products
+          </button>
+          <button 
+            className={`btn ${activeTab === 'hero' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => { setActiveTab('hero'); setIsFormOpen(false); }}
+            style={{ padding: '10px 20px' }}
+          >
+            Hero Settings
           </button>
           <button className="btn btn-text" onClick={onClose} style={{ marginLeft: '12px' }}>
             <X size={20} />
@@ -711,6 +738,100 @@ export default function AdminDashboard({
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------------------
+          HERO SETTINGS TAB
+          ---------------------------------------------------------------------- */}
+      {activeTab === 'hero' && heroSettings && (
+        <div className="animate-fade-in">
+          <div className="admin-form" style={{ maxWidth: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ margin: 0 }}>🏠 Hero Section Settings</h3>
+              <button
+                className="btn btn-primary"
+                onClick={handleHeroSave}
+                disabled={heroSaving}
+                style={{ padding: '10px 24px' }}
+              >
+                <Save size={16} /> {heroSaving ? 'Saving...' : 'Save All Changes'}
+              </button>
+            </div>
+
+            {/* Main Text */}
+            <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--panel-border)', paddingBottom: '8px', marginBottom: '16px' }}>Main Text</h4>
+            <div className="admin-form-grid">
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">Headline</label>
+                <input type="text" className="form-input" value={heroSettings.hero_headline} onChange={e => handleHeroChange('hero_headline', e.target.value)} />
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">Subheadline / Description</label>
+                <textarea className="form-input" rows={3} value={heroSettings.hero_subheadline} onChange={e => handleHeroChange('hero_subheadline', e.target.value)} style={{ resize: 'vertical' }} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">CTA Button Text</label>
+                <input type="text" className="form-input" value={heroSettings.hero_cta_text} onChange={e => handleHeroChange('hero_cta_text', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Badge 1</label>
+                <input type="text" className="form-input" value={heroSettings.hero_badge1} onChange={e => handleHeroChange('hero_badge1', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Badge 2</label>
+                <input type="text" className="form-input" value={heroSettings.hero_badge2} onChange={e => handleHeroChange('hero_badge2', e.target.value)} />
+              </div>
+            </div>
+
+            {/* Stats */}
+            <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--panel-border)', paddingBottom: '8px', margin: '24px 0 16px' }}>Stats Row</h4>
+            <div className="admin-form-grid">
+              {[1, 2, 3, 4].map(n => (
+                <div key={n} style={{ display: 'flex', gap: '8px' }}>
+                  <div className="form-group" style={{ flex: '1' }}>
+                    <label className="form-label">Stat {n} Value</label>
+                    <input type="text" className="form-input" value={heroSettings[`hero_stat${n}_value`]} onChange={e => handleHeroChange(`hero_stat${n}_value`, e.target.value)} />
+                  </div>
+                  <div className="form-group" style={{ flex: '2' }}>
+                    <label className="form-label">Stat {n} Label</label>
+                    <input type="text" className="form-input" value={heroSettings[`hero_stat${n}_label`]} onChange={e => handleHeroChange(`hero_stat${n}_label`, e.target.value)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Feature Cards */}
+            <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--panel-border)', paddingBottom: '8px', margin: '24px 0 16px' }}>Feature Cards (bottom-right)</h4>
+            <div className="admin-form-grid">
+              {[1, 2, 3].map(n => (
+                <div key={n} style={{ background: 'var(--bg-subtle, rgba(0,0,0,0.03))', borderRadius: '12px', padding: '16px', border: '1px solid var(--panel-border)' }}>
+                  <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '10px', color: 'var(--text-main)' }}>Card {n}</p>
+                  <div className="form-group">
+                    <label className="form-label">Icon (emoji)</label>
+                    <input type="text" className="form-input" value={heroSettings[`hero_card${n}_icon`]} onChange={e => handleHeroChange(`hero_card${n}_icon`, e.target.value)} style={{ fontSize: '1.4rem', textAlign: 'center' }} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Title</label>
+                    <input type="text" className="form-input" value={heroSettings[`hero_card${n}_title`]} onChange={e => handleHeroChange(`hero_card${n}_title`, e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Description</label>
+                    <input type="text" className="form-input" value={heroSettings[`hero_card${n}_desc`]} onChange={e => handleHeroChange(`hero_card${n}_desc`, e.target.value)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="btn btn-primary"
+              onClick={handleHeroSave}
+              disabled={heroSaving}
+              style={{ marginTop: '24px', padding: '12px 32px', width: '100%' }}
+            >
+              <Save size={16} /> {heroSaving ? 'Saving...' : 'Save All Changes'}
+            </button>
           </div>
         </div>
       )}

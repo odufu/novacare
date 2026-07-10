@@ -339,5 +339,74 @@ export const dbService = {
       return data[0];
     }
     return localDb.saveReview(review);
+  },
+
+  // SITE SETTINGS (hero content, etc.)
+  async getSiteSettings() {
+    const defaults = {
+      hero_headline: "Nigeria's Most Trusted Herbal Supplement Brand.",
+      hero_subheadline: "Every product is NAFDAC-registered and laboratory verified — what is on the label is exactly what is inside the bottle. Order now and pay only when it arrives at your door.",
+      hero_cta_text: "Shop Now",
+      hero_badge1: "✓ NAFDAC Certified",
+      hero_badge2: "🚚 Free Doorstep Delivery",
+      hero_stat1_value: "1M+",
+      hero_stat1_label: "Sales Per Month",
+      hero_stat2_value: "36",
+      hero_stat2_label: "States Covered",
+      hero_stat3_value: "7",
+      hero_stat3_label: "Premium Products",
+      hero_stat4_value: "4.9",
+      hero_stat4_label: "Avg. Rating",
+      hero_card1_icon: "🧬",
+      hero_card1_title: "NAFDAC Certified",
+      hero_card1_desc: "Govt. approved & verified",
+      hero_card2_icon: "🌿",
+      hero_card2_title: "Label = Bottle",
+      hero_card2_desc: "100% purity guaranteed",
+      hero_card3_icon: "🚚",
+      hero_card3_title: "Pay on Delivery",
+      hero_card3_desc: "Inspect before you pay",
+    };
+
+    if (isSupabaseEnabled()) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('key, value');
+      if (error) {
+        console.warn('site_settings fetch failed, using defaults:', error.message);
+        return defaults;
+      }
+      // Merge DB values over defaults
+      const merged = { ...defaults };
+      (data || []).forEach(row => {
+        merged[row.key] = row.value;
+      });
+      return merged;
+    }
+
+    // LocalStorage fallback
+    const stored = localStorage.getItem('novacare_site_settings');
+    return stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
+  },
+
+  async saveSiteSettings(settings) {
+    if (isSupabaseEnabled()) {
+      // Upsert each key-value pair
+      const rows = Object.entries(settings).map(([key, value]) => ({ key, value }));
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert(rows, { onConflict: 'key' });
+      if (error) {
+        console.error('Supabase saveSiteSettings error:', error);
+        throw new Error(`Failed to save settings: ${error.message}`);
+      }
+      return settings;
+    }
+    // LocalStorage fallback
+    const stored = localStorage.getItem('novacare_site_settings');
+    const existing = stored ? JSON.parse(stored) : {};
+    const merged = { ...existing, ...settings };
+    localStorage.setItem('novacare_site_settings', JSON.stringify(merged));
+    return merged;
   }
 };
