@@ -30,6 +30,9 @@ class LocalStorageDb {
     if (!localStorage.getItem('novacare_reviews')) {
       localStorage.setItem('novacare_reviews', JSON.stringify([]));
     }
+    if (!localStorage.getItem('novacare_campaigns')) {
+      localStorage.setItem('novacare_campaigns', JSON.stringify([]));
+    }
   }
 
   // Products CRUD
@@ -110,6 +113,34 @@ class LocalStorageDb {
     localStorage.setItem('novacare_reviews', JSON.stringify(reviews));
     return review;
   }
+
+  // Campaigns CRUD
+  getCampaigns() {
+    const all = JSON.parse(localStorage.getItem('novacare_campaigns')) || [];
+    return all.filter(c => !c.is_archived);
+  }
+
+  saveCampaign(campaign) {
+    const campaigns = JSON.parse(localStorage.getItem('novacare_campaigns')) || [];
+    const index = campaigns.findIndex(c => c.id === campaign.id);
+    if (index > -1) {
+      campaigns[index] = { ...campaigns[index], ...campaign };
+    } else {
+      campaigns.push({ ...campaign, is_archived: false });
+    }
+    localStorage.setItem('novacare_campaigns', JSON.stringify(campaigns));
+    return campaign;
+  }
+
+  archiveCampaign(id) {
+    const campaigns = JSON.parse(localStorage.getItem('novacare_campaigns')) || [];
+    const index = campaigns.findIndex(c => c.id === id);
+    if (index > -1) {
+      campaigns[index].is_archived = true;
+      localStorage.setItem('novacare_campaigns', JSON.stringify(campaigns));
+    }
+    return id;
+  }
 }
 
 const localDb = new LocalStorageDb();
@@ -153,6 +184,7 @@ const normalizeOrder = (row) => ({
   status: row.status,
   createdAt: row.created_at,
   is_archived: row.is_archived || false,
+  campaignId: row.campaign_id || null,
 });
 
 // --------------------------------------------------------------------------
@@ -262,6 +294,7 @@ export const dbService = {
         total: order.total,
         status: order.status || 'Pending',
         is_archived: false,
+        campaign_id: order.campaignId || null,
       };
 
       const { data, error } = await supabase
@@ -415,5 +448,76 @@ export const dbService = {
     const merged = { ...existing, ...settings };
     localStorage.setItem('novacare_site_settings', JSON.stringify(merged));
     return merged;
+  },
+
+  // CAMPAIGNS CRUD
+  async getCampaigns() {
+    if (isSupabaseEnabled()) {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('is_archived', false)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Supabase getCampaigns error, falling back to LocalStorage:', error);
+        return localDb.getCampaigns();
+      }
+      return data.map(row => ({
+        id: row.id,
+        name: row.name,
+        productId: row.product_id,
+        source: row.source,
+        title: row.title,
+        description: row.description,
+        status: row.status || 'Active',
+        createdAt: row.created_at,
+        is_archived: row.is_archived || false,
+      }));
+    }
+    return localDb.getCampaigns();
+  },
+
+  async saveCampaign(campaign) {
+    if (isSupabaseEnabled()) {
+      const dbPayload = {
+        id: campaign.id,
+        name: campaign.name,
+        product_id: campaign.productId,
+        source: campaign.source,
+        title: campaign.title,
+        description: campaign.description,
+        status: campaign.status || 'Active',
+        is_archived: false,
+      };
+
+      const { data, error } = await supabase
+        .from('campaigns')
+        .upsert(dbPayload, { onConflict: 'id' })
+        .select();
+
+      if (error) {
+        console.error('Supabase saveCampaign error:', error);
+        throw new Error(`Failed to save campaign: ${error.message}`);
+      }
+      // Sync local cache
+      localDb.saveCampaign(campaign);
+      return data[0];
+    }
+    return localDb.saveCampaign(campaign);
+  },
+
+  async archiveCampaign(id) {
+    if (isSupabaseEnabled()) {
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ is_archived: true })
+        .eq('id', id);
+      if (error) {
+        console.error('Supabase archiveCampaign error:', error);
+        throw new Error(`Failed to archive campaign: ${error.message}`);
+      }
+      return id;
+    }
+    return localDb.archiveCampaign(id);
   }
 };

@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 
 -- Add missing columns to existing orders table
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS campaign_id TEXT;
 
 -- Disable RLS for Orders
 ALTER TABLE public.orders DISABLE ROW LEVEL SECURITY;
@@ -97,7 +98,26 @@ ALTER TABLE public.site_settings DISABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
--- 5. Reload PostgREST schema cache
+-- 5. CAMPAIGNS Table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.campaigns (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  product_id TEXT REFERENCES public.products(id) ON DELETE SET NULL,
+  source TEXT,
+  title TEXT,
+  description TEXT,
+  status TEXT DEFAULT 'Active',
+  is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Disable RLS for Campaigns
+ALTER TABLE public.campaigns DISABLE ROW LEVEL SECURITY;
+
+
+-- ============================================================
+-- 6. Reload PostgREST schema cache
 --    Run this if the app reports "table not found in schema cache"
 -- ============================================================
 NOTIFY pgrst, 'reload schema';

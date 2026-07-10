@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import About from './pages/About';
 import ProductFunnel from './pages/ProductFunnel';
+import CampaignFunnel from './pages/CampaignFunnel';
 import AdminDashboard from './components/AdminDashboard';
 import { ToastContainer } from './components/Toast';
 import { dbService } from './services/dbService';
@@ -10,8 +11,9 @@ import { dbService } from './services/dbService';
 export default function App() {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const [theme, setTheme] = useState(localStorage.getItem('novacare_theme') || 'light');
-  const [currentPage, setCurrentPage] = useState('home'); // 'home', 'admin', 'product-{id}'
+  const [currentPage, setCurrentPage] = useState('home'); // 'home', 'admin', 'product-{id}', 'campaign-{id}'
   const [toasts, setToasts] = useState([]);
   const [secretClicks, setSecretClicks] = useState(0);
 
@@ -20,6 +22,13 @@ export default function App() {
     fetchInitialData();
     // Set theme
     document.documentElement.setAttribute('data-theme', theme);
+
+    // Parse URL query parameter for campaigns
+    const params = new URLSearchParams(window.location.search);
+    const campaignId = params.get('campaign') || params.get('c');
+    if (campaignId) {
+      setCurrentPage(`campaign-${campaignId}`);
+    }
   }, []);
 
   const fetchInitialData = async () => {
@@ -28,6 +37,8 @@ export default function App() {
       setProducts(prodList);
       const ordList = await dbService.getOrders();
       setOrders(ordList);
+      const campList = await dbService.getCampaigns();
+      setCampaigns(campList);
     } catch (e) {
       console.error("Error loading database initial tables:", e);
     }
@@ -112,6 +123,8 @@ export default function App() {
           setProducts={setProducts}
           orders={orders}
           setOrders={setOrders}
+          campaigns={campaigns}
+          setCampaigns={setCampaigns}
         />
       );
     }
@@ -125,6 +138,20 @@ export default function App() {
           addToast={addToast}
           onOrderSuccess={(order) => {
             fetchInitialData(); // reload orders in state
+          }}
+        />
+      );
+    }
+
+    if (currentPage.startsWith('campaign-')) {
+      const campaignId = currentPage.split('campaign-')[1];
+      return (
+        <CampaignFunnel 
+          campaignId={campaignId}
+          setCurrentPage={setCurrentPage}
+          addToast={addToast}
+          onOrderSuccess={(order) => {
+            fetchInitialData(); // reload data
           }}
         />
       );

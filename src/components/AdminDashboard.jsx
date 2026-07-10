@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Archive, Download, X, Save, Menu, LayoutDashboard, ShoppingBag, Home } from 'lucide-react';
+import { Plus, Edit, Archive, Download, X, Save, Menu, LayoutDashboard, ShoppingBag, Home, Megaphone } from 'lucide-react';
 import { dbService } from '../services/dbService';
 import { NIGERIAN_STATES } from '../data/initialData';
 
@@ -9,9 +9,21 @@ export default function AdminDashboard({
   products, 
   setProducts,
   orders,
-  setOrders
+  setOrders,
+  campaigns = [],
+  setCampaigns
 }) {
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'orders', 'products', 'hero'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'orders', 'products', 'campaigns', 'hero'
+  
+  // Campaign Form State
+  const [editingCampaign, setEditingCampaign] = useState(null);
+  const [isCampaignFormOpen, setIsCampaignFormOpen] = useState(false);
+  const [campaignIdInput, setCampaignIdInput] = useState('');
+  const [campaignName, setCampaignName] = useState('');
+  const [campaignProductId, setCampaignProductId] = useState('');
+  const [campaignSource, setCampaignSource] = useState('Facebook');
+  const [campaignTitle, setCampaignTitle] = useState('');
+  const [campaignDescription, setCampaignDescription] = useState('');
   const [stateFilter, setStateFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -47,6 +59,7 @@ export default function AdminDashboard({
     { id: 'dashboard', icon: '📊', label: 'Dashboard' },
     { id: 'orders',    icon: '📦', label: 'Orders' },
     { id: 'products',  icon: '🛍️', label: 'Products' },
+    { id: 'campaigns', icon: '📢', label: 'Campaigns' },
     { id: 'hero',      icon: '🏠', label: 'Hero Settings' },
   ];
 
@@ -66,6 +79,8 @@ export default function AdminDashboard({
       setProducts(prodList);
       const ordList = await dbService.getOrders();
       setOrders(ordList);
+      const campList = await dbService.getCampaigns();
+      setCampaigns(campList);
     } catch (e) {
       console.error(e);
     }
@@ -283,6 +298,72 @@ export default function AdminDashboard({
   };
 
   // --------------------------------------------------------------------------
+  // CAMPAIGN ACTIONS
+  // --------------------------------------------------------------------------
+  const openAddCampaignForm = () => {
+    setEditingCampaign(null);
+    setCampaignIdInput('');
+    setCampaignName('');
+    setCampaignProductId(products[0]?.id || '');
+    setCampaignSource('Facebook');
+    setCampaignTitle('');
+    setCampaignDescription('');
+    setIsCampaignFormOpen(true);
+  };
+
+  const openEditCampaignForm = (camp) => {
+    setEditingCampaign(camp);
+    setCampaignIdInput(camp.id);
+    setCampaignName(camp.name || '');
+    setCampaignProductId(camp.productId || camp.product_id || '');
+    setCampaignSource(camp.source || 'Facebook');
+    setCampaignTitle(camp.title || '');
+    setCampaignDescription(camp.description || '');
+    setIsCampaignFormOpen(true);
+  };
+
+  const handleCampaignSubmit = async (e) => {
+    e.preventDefault();
+    if (!campaignIdInput || !campaignName || !campaignProductId) {
+      addToast("ID code, Name, and Product are required", "error");
+      return;
+    }
+
+    const cleanId = campaignIdInput.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const payload = {
+      id: cleanId,
+      name: campaignName,
+      productId: campaignProductId,
+      source: campaignSource,
+      title: campaignTitle,
+      description: campaignDescription,
+      status: editingCampaign ? editingCampaign.status : 'Active'
+    };
+
+    try {
+      await dbService.saveCampaign(payload);
+      addToast(editingCampaign ? "Campaign updated successfully!" : "Campaign created successfully!", "success");
+      setIsCampaignFormOpen(false);
+      fetchAdminData();
+    } catch (e) {
+      addToast(e.message || "Failed to save campaign", "error");
+    }
+  };
+
+  const handleArchiveCampaign = async (id, name) => {
+    if (window.confirm(`Archive campaign "${name}"? Form links will be disabled.`)) {
+      try {
+        await dbService.archiveCampaign(id);
+        addToast("Campaign archived successfully!", "success");
+        fetchAdminData();
+      } catch (e) {
+        addToast(e.message || "Failed to archive campaign", "error");
+      }
+    }
+  };
+
+  // --------------------------------------------------------------------------
   // ORDER FILTERS & TOTALS
   // --------------------------------------------------------------------------
   const filteredOrders = orders.filter(order => {
@@ -379,6 +460,7 @@ export default function AdminDashboard({
                   {item.id === 'dashboard' && <LayoutDashboard size={20} />}
                   {item.id === 'orders' && <ShoppingBag size={20} />}
                   {item.id === 'products' && <Plus size={20} />}
+                  {item.id === 'campaigns' && <Megaphone size={20} />}
                   {item.id === 'hero' && <Home size={20} />}
                 </span>
                 {!sidebarCollapsed && <span>{item.label}</span>}
@@ -444,6 +526,7 @@ export default function AdminDashboard({
               {activeTab === 'dashboard' && 'Dashboard Overview'}
               {activeTab === 'orders' && 'Orders Board'}
               {activeTab === 'products' && 'Products Management'}
+              {activeTab === 'campaigns' && 'Social Ad Campaigns'}
               {activeTab === 'hero' && 'Homepage Hero Customizer'}
             </h1>
           </div>
@@ -457,6 +540,11 @@ export default function AdminDashboard({
             {activeTab === 'products' && !isFormOpen && (
               <button className="btn btn-secondary" onClick={openAddForm} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
                 <Plus size={14} /> Add Product
+              </button>
+            )}
+            {activeTab === 'campaigns' && !isCampaignFormOpen && (
+              <button className="btn btn-secondary" onClick={openAddCampaignForm} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                <Plus size={14} /> Add Campaign
               </button>
             )}
             {activeTab === 'hero' && (
@@ -686,6 +774,11 @@ export default function AdminDashboard({
                           <td>
                             <div style={{ fontWeight: 700 }}>{order.customerName}</div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{order.phone} {order.altPhone && `/ ${order.altPhone}`}</div>
+                            {order.campaignId && (
+                              <div style={{ display: 'inline-block', fontSize: '0.7rem', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 6px', borderRadius: '8px', marginTop: '4px', fontWeight: 700 }}>
+                                📢 {order.campaignId}
+                              </div>
+                            )}
                           </td>
                           <td>
                             <div style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.address}>{order.address}</div>
@@ -928,6 +1021,200 @@ export default function AdminDashboard({
                           </td>
                         </tr>
                       ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ==================================================================
+              CRM CAMPAIGNS VIEW
+              ================================================================== */}
+          {activeTab === 'campaigns' && (
+            <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {isCampaignFormOpen && (
+                <div className="admin-form animate-fade-in" style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-bg)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
+                      {editingCampaign ? `✏️ Edit Campaign: ${editingCampaign.name}` : '📢 Create New Social Ad Campaign'}
+                    </h3>
+                    <button className="btn btn-outline" onClick={() => setIsCampaignFormOpen(false)} style={{ padding: '6px 12px' }}>
+                      <X size={14} /> Cancel
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCampaignSubmit}>
+                    <div className="admin-form-grid">
+                      <div className="form-group">
+                        <label className="form-label">Campaign ID Code * (lowercase letters/numbers/hyphens)</label>
+                        <input
+                          type="text"
+                          value={campaignIdInput}
+                          onChange={(e) => setCampaignIdInput(e.target.value)}
+                          className="form-input"
+                          placeholder="e.g. grazer-fb-july"
+                          required
+                          disabled={!!editingCampaign}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Campaign Name *</label>
+                        <input
+                          type="text"
+                          value={campaignName}
+                          onChange={(e) => setCampaignName(e.target.value)}
+                          className="form-input"
+                          placeholder="e.g. Facebook Ad - Grazer Detox Tea Promo"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Associated Product *</label>
+                        <select
+                          value={campaignProductId}
+                          onChange={(e) => setCampaignProductId(e.target.value)}
+                          className="form-input"
+                          required
+                        >
+                          <option value="">Select a product...</option>
+                          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Traffic Source / Channel</label>
+                        <select
+                          value={campaignSource}
+                          onChange={(e) => setCampaignSource(e.target.value)}
+                          className="form-input"
+                        >
+                          <option value="Facebook">Facebook Ads</option>
+                          <option value="Instagram">Instagram Ads</option>
+                          <option value="TikTok">TikTok Ads</option>
+                          <option value="TikTok Organic">TikTok Organic</option>
+                          <option value="Google">Google Ads</option>
+                          <option value="Influencer">Influencer Marketing</option>
+                          <option value="WhatsApp">WhatsApp Broadcast</option>
+                          <option value="Other">Other Referral</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ borderTop: '1px solid var(--panel-border)', paddingTop: '20px', marginTop: '20px' }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem' }}>Landing Form Customization (Optional)</h4>
+                      <div className="form-group" style={{ marginBottom: '16px' }}>
+                        <label className="form-label">Custom Form Header Title</label>
+                        <input
+                          type="text"
+                          value={campaignTitle}
+                          onChange={(e) => setCampaignTitle(e.target.value)}
+                          className="form-input"
+                          placeholder="If blank, falls back to product name"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Custom Sub-headline / Copy text</label>
+                        <textarea
+                          value={campaignDescription}
+                          onChange={(e) => setCampaignDescription(e.target.value)}
+                          className="form-input"
+                          rows="3"
+                          placeholder="Explain the promotional offer (e.g. Buy 1 Get 1 Free, or Special 48-Hour Promo)"
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                      <button type="submit" className="btn btn-primary" style={{ padding: '10px 24px' }}>
+                        {editingCampaign ? 'Save Changes' : 'Create Campaign'}
+                      </button>
+                      <button type="button" className="btn btn-outline" onClick={() => setIsCampaignFormOpen(false)} style={{ padding: '10px 24px' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Campaigns List Table */}
+              <div className="admin-table-wrapper" style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '12px' }}>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Campaign Code / Name</th>
+                      <th>Source</th>
+                      <th>Target Product</th>
+                      <th>Form Link</th>
+                      <th>Conversion Stats</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campaigns.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>
+                          No social campaigns configured. Click "+ Add Campaign" to create one.
+                        </td>
+                      </tr>
+                    ) : (
+                      campaigns.map(camp => {
+                        const targetProd = products.find(p => p.id === camp.productId);
+                        const campOrders = orders.filter(o => o.campaignId === camp.id);
+                        const campRevenue = campOrders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + parseFloat(o.total), 0);
+                        const shareableUrl = `${window.location.origin}${window.location.pathname}?c=${camp.id}`;
+
+                        return (
+                          <tr key={camp.id}>
+                            <td>
+                              <div style={{ fontWeight: 700 }}>{camp.name}</div>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--primary)', fontFamily: 'monospace' }}>{camp.id}</div>
+                            </td>
+                            <td>
+                              <span style={{
+                                fontSize: '0.75rem',
+                                padding: '3px 8px',
+                                borderRadius: '12px',
+                                background: 'var(--bg-subtle, rgba(0,0,0,0.03))',
+                                border: '1px solid var(--panel-border)',
+                                fontWeight: 600
+                              }}>
+                                {camp.source}
+                              </span>
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{targetProd ? targetProd.name : 'Unknown Product'}</td>
+                            <td>
+                              <button
+                                className="btn btn-outline"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(shareableUrl);
+                                  addToast("Shareable link copied to clipboard!", "success");
+                                }}
+                                style={{ padding: '4px 8px', fontSize: '0.75rem', borderRadius: '8px' }}
+                              >
+                                📋 Copy Link
+                              </button>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                                {campOrders.length} orders
+                              </div>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--success)', fontWeight: 700 }}>
+                                ₦{campRevenue.toLocaleString()}
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', gap: '8px' }}>
+                                <button className="btn btn-outline btn-text" onClick={() => openEditCampaignForm(camp)} style={{ padding: '6px 12px', fontSize: '0.82rem' }}>
+                                  <Edit size={14} /> Edit
+                                </button>
+                                <button className="btn btn-outline" onClick={() => handleArchiveCampaign(camp.id, camp.name)} title="Archive" style={{ padding: '6px 12px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                                  <Archive size={14} /> Archive
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
