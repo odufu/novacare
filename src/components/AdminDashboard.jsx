@@ -429,7 +429,7 @@ export default function AdminDashboard({
         height: '100%',
       }}>
         {/* Workspace Top Header */}
-        <header style={{
+        <div style={{
           height: '64px',
           background: 'var(--panel-bg)',
           borderBottom: '1px solid var(--panel-border)',
@@ -480,10 +480,10 @@ export default function AdminDashboard({
               <X size={14} /> Close Board
             </button>
           </div>
-        </header>
+        </div>
 
         {/* Scrollable Work View */}
-        <main style={{
+        <div style={{
           flex: 1,
           overflowY: 'auto',
           padding: '24px',
@@ -1035,7 +1035,7 @@ export default function AdminDashboard({
             </div>
           )}
 
-        </main>
+        </div>
       </div>
     </div>
   );
