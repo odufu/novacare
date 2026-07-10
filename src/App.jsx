@@ -139,37 +139,40 @@ export default function App() {
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       {/* Navigation Header */}
-      <Navbar 
-        theme={theme} 
-        toggleTheme={toggleTheme} 
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-      />
+      {currentPage !== 'admin' && (
+        <Navbar 
+          theme={theme} 
+          toggleTheme={toggleTheme} 
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+        />
+      )}
 
       {/* Routed Body */}
       {renderPage()}
 
-
       {/* FOOTER */}
-      <footer style={{ backgroundColor: 'var(--panel-bg)', borderTop: '1px solid var(--panel-border)', padding: '40px 0', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-        <div className="container">
-          <img 
-            src="assets/logo.png" 
-            alt="Novacare Limited Logo" 
-            style={{ height: '36px', margin: '0 auto 16px auto', cursor: 'pointer' }}
-            onClick={() => { setCurrentPage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-          />
-          <p style={{ fontWeight: 600, color: 'var(--text-main)' }}>&copy; 2026 Novacare Limited. All Rights Reserved.</p>
-          <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>Certified Herbal Formulations - Distributed All Over the 36 States of Nigeria</p>
-          
-          {/* Secret Admin Toggle Trigger */}
-          <div className="admin-trigger-container">
-            <button onClick={handleSecretClick} className="btn-admin-trigger">
-              System Version 1.1.0 (Secure Server)
-            </button>
+      {currentPage !== 'admin' && (
+        <footer style={{ backgroundColor: 'var(--panel-bg)', borderTop: '1px solid var(--panel-border)', padding: '40px 0', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+          <div className="container">
+            <img 
+              src="assets/logo.png" 
+              alt="Novacare Limited Logo" 
+              style={{ height: '36px', margin: '0 auto 16px auto', cursor: 'pointer' }}
+              onClick={() => { setCurrentPage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            />
+            <p style={{ fontWeight: 600, color: 'var(--text-main)' }}>&copy; 2026 Novacare Limited. All Rights Reserved.</p>
+            <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>Certified Herbal Formulations - Distributed All Over the 36 States of Nigeria</p>
+            
+            {/* Secret Admin Toggle Trigger */}
+            <div className="admin-trigger-container">
+              <button onClick={handleSecretClick} className="btn-admin-trigger">
+                System Version 1.1.0 (Secure Server)
+              </button>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </>
   );
 }
